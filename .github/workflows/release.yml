@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: ${{ github.repository == 'leonletto/thrum_llm_client' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Verify tests pass
+        run: go test ./endpoint/ -race
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Tags containing '-' (e.g. v0.2.0-rc.1) publish as GitHub prereleases.
+          prerelease_flag=""
+          case "$TAG" in
+            *-*) prerelease_flag="--prerelease" ;;
+          esac
+
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            $prerelease_flag
+
+      - name: Prime Go module proxy
+        env:
+          TAG: ${{ github.ref_name }}
+        # Hitting proxy.golang.org/<module>/@v/<version>.info forces the
+        # proxy to fetch and cache the new tag, which in turn triggers
+        # pkg.go.dev indexing within minutes instead of waiting for the
+        # first downstream `go get`.
+        run: |
+          curl -fsSL "https://proxy.golang.org/github.com/leonletto/thrum_llm_client/@v/${TAG}.info"

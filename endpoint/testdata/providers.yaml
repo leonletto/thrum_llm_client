@@ -1,0 +1,29 @@
+defaults:
+  capabilities:
+    chat: true
+    embedding: false
+    vision: false
+    thinking: false
+    streaming: true
+    generate: false
+
+providers:
+  - name: test-ollama
+    type: ollama
+    endpoint: http://localhost:11434
+    capabilities:
+      embedding: true
+
+  - name: test-zai
+    type: zai
+    endpoint: https://api.z.ai
+    api_key_env: TEST_ZAI_KEY
+    chat_path: /api/test/chat
+    capabilities:
+      thinking: true
+
+  - name: test-nostream
+    type: openai-compat
+    endpoint: http://localhost:8000
+    capabilities:
+      streaming: false

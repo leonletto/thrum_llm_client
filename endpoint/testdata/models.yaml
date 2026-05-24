@@ -1,0 +1,30 @@
+defaults:
+  max_context_tokens: 128000
+  max_output_tokens: 8000
+  default_temperature: 0.7
+  supports_streaming: true
+  supports_embedding: false
+  supports_reasoning: false
+  supports_vision: false
+
+models:
+  - canonical_id: test-chat
+    display_name: Test Chat Model
+    provider_models:
+      ollama: test-chat:7b
+      vllm: Test/Chat-7B
+    supports_reasoning: true
+
+  - canonical_id: test-embed
+    display_name: Test Embed Model
+    max_context_tokens: 8192
+    max_output_tokens: 0
+    supports_streaming: false
+    supports_embedding: true
+    provider_models:
+      ollama: test-embed:latest
+
+  - canonical_id: test-defaults-only
+    display_name: Test Defaults Only
+    provider_models:
+      ollama: test-defaults:latest
