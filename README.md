@@ -158,6 +158,19 @@ Filenames use `{prompt-slug}-v{N}.{ext}`, with `N` picked to never collide with 
 
 For video, `UnifiedVideoClient.GenerateVideo` composes Submit + Wait + Download in one call. `OnProgress` fires for both polling (`ProgressPolling` with the latest `JobStatus`) and download (`ProgressDownloading` / `ProgressComplete`). The lazy `GeneratedVideo.OpenContent` closure remains populated even when `OutputDir` is set, so stream-through callers can choose between path-based and stream-based access. Callers using the three-phase Submit / Poll / Wait API directly can still get library-managed downloads via `endpoint.DownloadVideo(ctx, job, opts)`.
 
+## Documentation
+
+User-facing guides live in [`docs/`](docs/):
+
+- [Getting started](docs/getting-started.md) — first call for chat, image, and video.
+- [Providers](docs/providers.md) — per-provider setup, capability matrix, Z.ai reasoning mode.
+- [Errors and retries](docs/errors-and-retries.md) — typed sentinels and `RetryPolicy` customization.
+- [Downloads](docs/downloads.md) — `OutputDir`, `OnProgress`, slug-based filenames.
+- [Registries](docs/registries.md) — YAML provider/model registries for canonical-name resolution.
+- [Testing](docs/testing.md) — unit tests, the live-API smoke suite, and adding tests.
+
+Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md). Security? See [SECURITY.md](SECURITY.md).
+
 ## Clean Room Development
 
 This project is developed following clean room practices:
