@@ -170,11 +170,3 @@ User-facing guides live in [`docs/`](docs/):
 - [Testing](docs/testing.md) — unit tests, the live-API smoke suite, and adding tests.
 
 Contributing? See [CONTRIBUTING.md](CONTRIBUTING.md). Security? See [SECURITY.md](SECURITY.md).
-
-## Clean Room Development
-
-This project is developed following clean room practices:
-
-- Personal devices and accounts only
-- Public documentation and open-source libraries only
-- Zero employer code, data, or confidential information
