@@ -51,6 +51,32 @@ type AnthropicRequest struct {
 	Thinking    *ThinkingConfig    `json:"thinking,omitempty"`
 }
 
+// anthropicWireRequest is private so explicit-zero presence affects only this
+// client's outbound requests, not JSON behavior of the exported request type.
+type anthropicWireRequest struct {
+	Model       string             `json:"model"`
+	Messages    []AnthropicMessage `json:"messages"`
+	MaxTokens   int                `json:"max_tokens"`
+	System      string             `json:"system,omitempty"`
+	Temperature *float64           `json:"temperature,omitempty"`
+	Stream      bool               `json:"stream,omitempty"`
+	StopSeqs    []string           `json:"stop_sequences,omitempty"`
+	Thinking    *ThinkingConfig    `json:"thinking,omitempty"`
+}
+
+func newAnthropicWireRequest(req AnthropicRequest, temperature *float64) anthropicWireRequest {
+	return anthropicWireRequest{
+		Model:       req.Model,
+		Messages:    req.Messages,
+		MaxTokens:   req.MaxTokens,
+		System:      req.System,
+		Temperature: temperature,
+		Stream:      req.Stream,
+		StopSeqs:    req.StopSeqs,
+		Thinking:    req.Thinking,
+	}
+}
+
 // AnthropicMessage represents a message in Anthropic format.
 type AnthropicMessage struct {
 	Role    string                  `json:"role"`    // "user" or "assistant" only
@@ -144,9 +170,6 @@ func (c *anthropicClient) Chat(ctx context.Context, model string, messages []Cha
 		if opts.MaxTokens > 0 {
 			reqBody.MaxTokens = opts.MaxTokens
 		}
-		if opts.Temperature > 0 {
-			reqBody.Temperature = opts.Temperature
-		}
 		if len(opts.Stop) > 0 {
 			reqBody.StopSeqs = opts.Stop
 		}
@@ -159,12 +182,16 @@ func (c *anthropicClient) Chat(ctx context.Context, model string, messages []Cha
 		}
 	}
 
-	return c.doRequest(ctx, reqBody)
+	var temperature *float64
+	if opts != nil {
+		temperature = opts.temperatureValue()
+	}
+	return c.doRequest(ctx, reqBody, temperature)
 }
 
 // doRequest performs the HTTP request and parses the response.
-func (c *anthropicClient) doRequest(ctx context.Context, reqBody AnthropicRequest) (*ChatResponse, error) {
-	body, err := json.Marshal(reqBody)
+func (c *anthropicClient) doRequest(ctx context.Context, reqBody AnthropicRequest, temperature *float64) (*ChatResponse, error) {
+	body, err := json.Marshal(newAnthropicWireRequest(reqBody, temperature))
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
@@ -283,9 +310,6 @@ func (c *anthropicClient) ChatStream(ctx context.Context, model string, messages
 		if opts.MaxTokens > 0 {
 			reqBody.MaxTokens = opts.MaxTokens
 		}
-		if opts.Temperature > 0 {
-			reqBody.Temperature = opts.Temperature
-		}
 		if len(opts.Stop) > 0 {
 			reqBody.StopSeqs = opts.Stop
 		}
@@ -298,7 +322,11 @@ func (c *anthropicClient) ChatStream(ctx context.Context, model string, messages
 		}
 	}
 
-	body, err := json.Marshal(reqBody)
+	var temperature *float64
+	if opts != nil {
+		temperature = opts.temperatureValue()
+	}
+	body, err := json.Marshal(newAnthropicWireRequest(reqBody, temperature))
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}

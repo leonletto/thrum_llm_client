@@ -57,7 +57,7 @@ type ollamaChatMessage struct {
 // ollamaChatOptions contains generation parameters for Ollama.
 type ollamaChatOptions struct {
 	NumPredict  int      `json:"num_predict,omitempty"`
-	Temperature float64  `json:"temperature,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 	Stop        []string `json:"stop,omitempty"`
 }
 
@@ -97,9 +97,7 @@ func (c *ollamaClient) Chat(ctx context.Context, model string, messages []ChatMe
 		if opts.MaxTokens > 0 {
 			req.Options.NumPredict = opts.MaxTokens
 		}
-		if opts.Temperature > 0 {
-			req.Options.Temperature = opts.Temperature
-		}
+		req.Options.Temperature = opts.temperatureValue()
 		if len(opts.Stop) > 0 {
 			req.Options.Stop = opts.Stop
 		}
@@ -173,9 +171,7 @@ func (c *ollamaClient) ChatStream(ctx context.Context, model string, messages []
 		if opts.MaxTokens > 0 {
 			req.Options.NumPredict = opts.MaxTokens
 		}
-		if opts.Temperature > 0 {
-			req.Options.Temperature = opts.Temperature
-		}
+		req.Options.Temperature = opts.temperatureValue()
 		if len(opts.Stop) > 0 {
 			req.Options.Stop = opts.Stop
 		}

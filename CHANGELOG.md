@@ -5,6 +5,39 @@ All notable changes to this module will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-10-10
+
+### Fixed
+
+- Preserve explicit zero temperature in Anthropic, OpenAI-compatible, and Ollama
+  chat and streaming requests when Go callers set `ChatOptions.TemperatureSet`.
+  Unset and nonzero callers keep their previous request bytes. Z.ai continues to
+  send its existing numeric temperature, including zero.
+- JSON-decoded `ChatOptions` cannot express explicit zero: a decoded temperature
+  of zero remains unset. Set `TemperatureSet` in Go to opt in.
+- `TemperatureSet` is appended to `ChatOptions`; external unkeyed positional
+  literals must add the new field. Keyed literals and field assignments keep
+  their existing source shape.
+- Opting into explicit zero changes request bytes by adding `temperature: 0`.
+  Consumers that fingerprint requests or resume receipts must assign this wire
+  shape a new identity.
+
+### Compatibility audit
+
+- Audited chat temperature for Anthropic, OpenAI-compatible, Ollama, and Z.ai.
+  `top_p`, `top_k`, frequency/presence/repetition penalties, and seed do not
+  exist as fields in any provider request struct; `ExtraBody` preserves
+  explicit zero values for those map-only controls.
+- Z.ai's `ZaiRequest.Temperature` is always serialized, so unset options already
+  send zero and remain unchanged. Ollama's zero `num_predict` continues to use
+  its existing default. `ThinkingConfig.BudgetTokens` remains omitted at zero;
+  enabled thinking continues to use the existing nonzero default budget.
+- Anthropic/OpenAI/Z.ai `max_tokens` keep their existing zero-as-default
+  behavior. Image `N` and video `Duration` retain their existing provider
+  defaults.
+- Video `WithAudio` is a plain bool with `omitempty`, so explicit false cannot
+  be sent; this remains a known limitation for a separate change.
+
 ## [0.1.1]
 
 ### Added
