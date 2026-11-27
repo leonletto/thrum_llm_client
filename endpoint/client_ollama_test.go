@@ -97,8 +97,8 @@ func TestOllamaClient_Chat_WithOptions(t *testing.T) {
 			if req.Options.NumPredict != 100 {
 				t.Errorf("expected num_predict 100, got %d", req.Options.NumPredict)
 			}
-			if req.Options.Temperature != 0.7 {
-				t.Errorf("expected temperature 0.7, got %f", req.Options.Temperature)
+			if req.Options.Temperature == nil || *req.Options.Temperature != 0.7 {
+				t.Errorf("expected temperature pointer to 0.7, got %v", req.Options.Temperature)
 			}
 		}
 

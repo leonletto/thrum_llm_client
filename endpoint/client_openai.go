@@ -55,7 +55,7 @@ type openaiChatRequest struct {
 	Model       string        `json:"model"`
 	Messages    []ChatMessage `json:"messages"`
 	MaxTokens   int           `json:"max_tokens,omitempty"`
-	Temperature float64       `json:"temperature,omitempty"`
+	Temperature *float64      `json:"temperature,omitempty"`
 	Stream      bool          `json:"stream"`
 	Stop        []string      `json:"stop,omitempty"`
 }
@@ -94,7 +94,7 @@ func (c *openaiCompatClient) Chat(ctx context.Context, model string, messages []
 	}
 	if opts != nil {
 		reqBody.MaxTokens = opts.MaxTokens
-		reqBody.Temperature = opts.Temperature
+		reqBody.Temperature = opts.openAITemperatureValue()
 		reqBody.Stop = opts.Stop
 	}
 	if reqBody.MaxTokens == 0 {
@@ -177,7 +177,7 @@ func (c *openaiCompatClient) ChatStream(ctx context.Context, model string, messa
 	}
 	if opts != nil {
 		reqBody.MaxTokens = opts.MaxTokens
-		reqBody.Temperature = opts.Temperature
+		reqBody.Temperature = opts.openAITemperatureValue()
 		reqBody.Stop = opts.Stop
 	}
 	if reqBody.MaxTokens == 0 {

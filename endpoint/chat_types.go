@@ -41,10 +41,12 @@ type ChatMessage struct {
 
 // ChatOptions provides generation parameters for chat completion requests.
 type ChatOptions struct {
-	// MaxTokens limits the maximum number of tokens to generate
+	// MaxTokens limits the maximum number of tokens to generate.
 	MaxTokens int `json:"max_tokens,omitempty"`
 
-	// Temperature controls randomness (0.0 = deterministic, 2.0 = very random)
+	// Temperature controls randomness; higher values are more random. A bare zero
+	// is unset: no temperature is sent and the provider default applies. To send
+	// an explicit zero, also set TemperatureSet.
 	Temperature float64 `json:"temperature,omitempty"`
 
 	// Stream enables streaming response mode
@@ -61,6 +63,29 @@ type ChatOptions struct {
 
 	// Tools advertises callable tools to the LLM
 	Tools []ToolDefinition `json:"tools,omitempty"`
+
+	// TemperatureSet sends an explicit zero temperature when Temperature is zero.
+	// JSON-decoded options cannot express this distinction. Negative and NaN values
+	// retain each provider's legacy handling even when this flag is set.
+	TemperatureSet bool `json:"-"`
+}
+
+// temperatureValue preserves the existing Anthropic and Ollama behavior while
+// allowing callers to opt into an explicit zero.
+func (o ChatOptions) temperatureValue() *float64 {
+	if o.Temperature > 0 || (o.TemperatureSet && o.Temperature == 0) {
+		return &o.Temperature
+	}
+	return nil
+}
+
+// openAITemperatureValue retains OpenAI-compatible and Z.ai behavior for all
+// nonzero values while allowing callers to opt into an explicit zero.
+func (o ChatOptions) openAITemperatureValue() *float64 {
+	if o.Temperature != 0 || o.TemperatureSet {
+		return &o.Temperature
+	}
+	return nil
 }
 
 // TokenUsage contains token consumption metrics for a request.

@@ -58,6 +58,24 @@ Provider is auto-detected from the URL host. To override, pass
 `Provider: "openai"` (or `"anthropic"`, `"zai"`, `"ollama"`) in the
 config.
 
+### Sampling options
+
+Use `&endpoint.ChatOptions{Temperature: 0, TemperatureSet: true}` to send zero
+in `Chat` or `ChatStream`. Positive temperatures need no presence flag and pass
+through unchanged; check the selected provider/model's supported range. JSON-
+decoded options cannot express explicit zero: decoding `{"temperature":0}`
+leaves `TemperatureSet` false. Set the flag in Go to opt in. Zero reduces
+sampling randomness without guaranteeing identical responses.
+
+For Anthropic, OpenAI-compatible, Ollama, and Z.ai, a nil options pointer or
+zero without `TemperatureSet` omits temperature and uses the provider/model
+default. Earlier releases sent zero to Z.ai when temperature was unset; set
+`TemperatureSet` to keep that. For the other providers, opting into zero adds
+`temperature: 0` to the request bytes, and unset and nonzero callers retain
+their previous request bytes. Z.ai nonzero request bytes are also unchanged.
+Downstream request fingerprinting or receipt-resume consumers must treat each
+new wire shape as a new identity.
+
 ## Streaming
 
 `ChatStream` invokes a callback for each text chunk. It returns the
