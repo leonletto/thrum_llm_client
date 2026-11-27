@@ -44,7 +44,9 @@ type ChatOptions struct {
 	// MaxTokens limits the maximum number of tokens to generate.
 	MaxTokens int `json:"max_tokens,omitempty"`
 
-	// Temperature controls randomness (0.0 = deterministic, 2.0 = very random).
+	// Temperature controls randomness; higher values are more random. A bare zero
+	// is unset: no temperature is sent and the provider default applies. To send
+	// an explicit zero, also set TemperatureSet.
 	Temperature float64 `json:"temperature,omitempty"`
 
 	// Stream enables streaming response mode

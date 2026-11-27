@@ -7,15 +7,18 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [0.1.2] - 2026-11-27
 
+### Changed
+
+- Z.ai chat and streaming requests now omit `temperature` when it is unset,
+  instead of sending `temperature: 0`. Z.ai sends zero only when
+  `ChatOptions.TemperatureSet` is true. Nonzero values, including negative
+  values, are sent as before.
+
 ### Fixed
 
 - Preserve explicit zero temperature in Anthropic, OpenAI-compatible, and Ollama
   chat and streaming requests when Go callers set `ChatOptions.TemperatureSet`.
   Unset and nonzero callers of these providers keep their previous request bytes.
-- Z.ai chat and streaming requests now omit `temperature` when it is unset,
-  instead of sending `temperature: 0`. Z.ai sends zero only when
-  `ChatOptions.TemperatureSet` is true. Nonzero values, including negative
-  values, are sent as before.
 - JSON-decoded `ChatOptions` cannot express explicit zero: a decoded temperature
   of zero remains unset. Set `TemperatureSet` in Go to opt in.
 - `TemperatureSet` is appended to `ChatOptions`; external unkeyed positional
