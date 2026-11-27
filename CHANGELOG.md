@@ -11,16 +11,21 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 - Preserve explicit zero temperature in Anthropic, OpenAI-compatible, and Ollama
   chat and streaming requests when Go callers set `ChatOptions.TemperatureSet`.
-  Unset and nonzero callers keep their previous request bytes. Z.ai continues to
-  send its existing numeric temperature, including zero.
+  Unset and nonzero callers of these providers keep their previous request bytes.
+- Z.ai chat and streaming requests now omit `temperature` when it is unset,
+  instead of sending `temperature: 0`. Z.ai sends zero only when
+  `ChatOptions.TemperatureSet` is true. Nonzero values, including negative
+  values, are sent as before.
 - JSON-decoded `ChatOptions` cannot express explicit zero: a decoded temperature
   of zero remains unset. Set `TemperatureSet` in Go to opt in.
 - `TemperatureSet` is appended to `ChatOptions`; external unkeyed positional
   literals must add the new field. Keyed literals and field assignments keep
   their existing source shape.
-- Opting into explicit zero changes request bytes by adding `temperature: 0`.
-  Consumers that fingerprint requests or resume receipts must assign this wire
-  shape a new identity.
+- For Anthropic, OpenAI-compatible, and Ollama, opting into explicit zero changes
+  request bytes by adding `temperature: 0`. For Z.ai, unset requests change
+  bytes by dropping `temperature`; callers that relied on the implicit zero must
+  set `TemperatureSet`. Consumers that fingerprint requests or resume receipts
+  must assign each new wire shape a new identity.
 
 ### Compatibility audit
 
@@ -28,10 +33,11 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
   `top_p`, `top_k`, frequency/presence/repetition penalties, and seed do not
   exist as fields in any provider request struct; `ExtraBody` preserves
   explicit zero values for those map-only controls.
-- Z.ai's `ZaiRequest.Temperature` is always serialized, so unset options already
-  send zero and remain unchanged. Ollama's zero `num_predict` continues to use
-  its existing default. `ThinkingConfig.BudgetTokens` remains omitted at zero;
-  enabled thinking continues to use the existing nonzero default budget.
+- The exported `ZaiRequest` type and its JSON behavior are unchanged; only the
+  client's outbound wire request omits an unset temperature. Ollama's zero
+  `num_predict` continues to use its existing default.
+  `ThinkingConfig.BudgetTokens` remains omitted at zero; enabled thinking
+  continues to use the existing nonzero default budget.
 - Anthropic/OpenAI/Z.ai `max_tokens` keep their existing zero-as-default
   behavior. Image `N` and video `Duration` retain their existing provider
   defaults.

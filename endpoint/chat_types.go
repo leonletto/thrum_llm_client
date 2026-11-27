@@ -77,8 +77,8 @@ func (o ChatOptions) temperatureValue() *float64 {
 	return nil
 }
 
-// openAITemperatureValue retains OpenAI-compatible behavior for all nonzero
-// values while allowing callers to opt into an explicit zero.
+// openAITemperatureValue retains OpenAI-compatible and Z.ai behavior for all
+// nonzero values while allowing callers to opt into an explicit zero.
 func (o ChatOptions) openAITemperatureValue() *float64 {
 	if o.Temperature != 0 || o.TemperatureSet {
 		return &o.Temperature

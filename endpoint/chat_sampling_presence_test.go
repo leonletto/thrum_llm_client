@@ -3,6 +3,7 @@ package endpoint
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -111,12 +112,7 @@ func TestChatTemperatureWirePresence(t *testing.T) {
 			for _, tc := range cases {
 				t.Run(fmt.Sprintf("%s/stream=%t/%s", provider, stream, tc.name), func(t *testing.T) {
 					body := captureSamplingRequest(t, provider, stream, tc.opts, nil)
-					want := tc.want
-					// Z.ai's established default sends zero even when unspecified.
-					if provider == "zai" && want == "" {
-						want = "0"
-					}
-					assertSamplingJSON(t, samplingFields(t, provider, body), "temperature", want)
+					assertSamplingJSON(t, samplingFields(t, provider, body), "temperature", tc.want)
 					streamWant := fmt.Sprint(stream)
 					if provider == "anthropic" && !stream {
 						streamWant = ""
@@ -219,7 +215,7 @@ func TestChatOptionsJSONDecodedZeroRemainsUnset(t *testing.T) {
 	if opts.TemperatureSet {
 		t.Fatal("JSON-decoded zero must not opt into explicit-zero behavior")
 	}
-	for _, provider := range []string{"anthropic", "openai", "ollama"} {
+	for _, provider := range []string{"anthropic", "openai", "ollama", "zai"} {
 		for _, stream := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/stream=%t", provider, stream), func(t *testing.T) {
 				body := captureSamplingRequest(t, provider, stream, &opts, nil)
@@ -254,6 +250,102 @@ func TestChatTemperatureNegativeAndNaNMatchLegacyProviders(t *testing.T) {
 	}
 	if _, err := json.Marshal(openaiChatRequest{Temperature: func() *float64 { value := math.NaN(); return &value }()}); err == nil {
 		t.Fatal("OpenAI-compatible NaN temperature should retain its existing JSON marshal error")
+	}
+}
+
+// Z.ai has always forwarded every nonzero value unchanged, including negative
+// values, and failed to marshal non-finite ones.
+func TestZaiChatTemperatureEdgeValues(t *testing.T) {
+	negativeZero := math.Copysign(0, -1)
+	for _, stream := range []bool{false, true} {
+		for _, tc := range []struct {
+			name string
+			opts ChatOptions
+			want string
+		}{
+			{name: "negative", opts: ChatOptions{Temperature: -0.25}, want: "-0.25"},
+			{name: "negative_set", opts: ChatOptions{Temperature: -0.25, TemperatureSet: true}, want: "-0.25"},
+			{name: "negative_zero", opts: ChatOptions{Temperature: negativeZero}, want: ""},
+			{name: "negative_zero_set", opts: ChatOptions{Temperature: negativeZero, TemperatureSet: true}, want: "-0"},
+		} {
+			t.Run(fmt.Sprintf("stream=%t/%s", stream, tc.name), func(t *testing.T) {
+				body := captureSamplingRequest(t, "zai", stream, &tc.opts, nil)
+				assertSamplingJSON(t, body, "temperature", tc.want)
+			})
+		}
+		for _, value := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+			t.Run(fmt.Sprintf("stream=%t/%g", stream, value), func(t *testing.T) {
+				client := NewZaiClientWithEndpoint("", "http://127.0.0.1:0")
+				opts := &ChatOptions{Temperature: value}
+				messages := []ChatMessage{{Role: "user", Content: "hi"}}
+				var err error
+				if stream {
+					_, err = client.ChatStream(context.Background(), "test", messages, opts, func(string) error { return nil })
+				} else {
+					_, err = client.Chat(context.Background(), "test", messages, opts)
+				}
+				var unsupported *json.UnsupportedValueError
+				if !errors.As(err, &unsupported) {
+					t.Fatalf("error = %v, want JSON unsupported value error", err)
+				}
+			})
+		}
+	}
+}
+
+func TestZaiRequestBytes(t *testing.T) {
+	const prefix = `{"model":"test","messages":[{"role":"user","content":"hi"}],"max_tokens":8000,`
+	tools := []ToolDefinition{{Name: "lookup", Description: "Lookup", Schema: json.RawMessage(`{"type":"object"}`)}}
+	for _, stream := range []bool{false, true} {
+		suffix := fmt.Sprintf(`"stream":%t,"thinking":{"type":"disabled"}`, stream)
+		for _, tc := range []struct {
+			name string
+			opts *ChatOptions
+			want string
+		}{
+			{name: "unset", want: prefix + suffix + `}`},
+			{
+				name: "explicit_zero",
+				opts: &ChatOptions{TemperatureSet: true},
+				want: prefix + `"temperature":0,` + suffix + `}`,
+			},
+			{
+				name: "nonzero_with_tools",
+				opts: &ChatOptions{Temperature: 0.7, Tools: tools},
+				want: prefix + `"temperature":0.7,` + suffix + `,"tools":[{"type":"function","function":{"name":"lookup","description":"Lookup","parameters":{"type":"object"}}}]}`,
+			},
+		} {
+			t.Run(fmt.Sprintf("stream=%t/%s", stream, tc.name), func(t *testing.T) {
+				var body []byte
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					var err error
+					body, err = io.ReadAll(r.Body)
+					if err != nil {
+						t.Error(err)
+					}
+					if stream {
+						_, _ = fmt.Fprint(w, "data: [DONE]\n\n")
+						return
+					}
+					_, _ = fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"ok"}}]}`)
+				}))
+				defer server.Close()
+				client := NewZaiClientWithEndpoint("", server.URL)
+				messages := []ChatMessage{{Role: "user", Content: "hi"}}
+				var err error
+				if stream {
+					_, err = client.ChatStream(context.Background(), "test", messages, tc.opts, func(string) error { return nil })
+				} else {
+					_, err = client.Chat(context.Background(), "test", messages, tc.opts)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(body) != tc.want {
+					t.Fatalf("wire body = %s, want %s", body, tc.want)
+				}
+			})
+		}
 	}
 }
 

@@ -67,13 +67,14 @@ decoded options cannot express explicit zero: decoding `{"temperature":0}`
 leaves `TemperatureSet` false. Set the flag in Go to opt in. Zero reduces
 sampling randomness without guaranteeing identical responses.
 
-For Anthropic, OpenAI-compatible, and Ollama, a nil options pointer or zero
-without `TemperatureSet` omits temperature and uses the provider/model default.
-Z.ai retains its existing behavior of sending zero when temperature is unset.
-Opting into zero adds `temperature: 0` to the request bytes; unset and nonzero
-callers retain their previous request bytes. Downstream request fingerprinting
-or receipt-resume consumers must treat the explicit-zero wire shape as a new
-identity.
+For Anthropic, OpenAI-compatible, Ollama, and Z.ai, a nil options pointer or
+zero without `TemperatureSet` omits temperature and uses the provider/model
+default. Earlier releases sent zero to Z.ai when temperature was unset; set
+`TemperatureSet` to keep that. For the other providers, opting into zero adds
+`temperature: 0` to the request bytes, and unset and nonzero callers retain
+their previous request bytes. Z.ai nonzero request bytes are also unchanged.
+Downstream request fingerprinting or receipt-resume consumers must treat each
+new wire shape as a new identity.
 
 ## Streaming
 

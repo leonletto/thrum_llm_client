@@ -106,6 +106,30 @@ type ZaiRequest struct {
 	Tools       []zaiTool    `json:"tools,omitempty"` // only sent if non-empty
 }
 
+// zaiWireRequest is private so temperature presence affects only this client's
+// outbound requests, not JSON behavior of the exported request type.
+type zaiWireRequest struct {
+	Model       string       `json:"model"`
+	Messages    []ZaiMessage `json:"messages"`
+	MaxTokens   int          `json:"max_tokens"`
+	Temperature *float64     `json:"temperature,omitempty"`
+	Stream      bool         `json:"stream"`
+	Thinking    *ZaiThinking `json:"thinking,omitempty"`
+	Tools       []zaiTool    `json:"tools,omitempty"`
+}
+
+func newZaiWireRequest(req ZaiRequest, temperature *float64) zaiWireRequest {
+	return zaiWireRequest{
+		Model:       req.Model,
+		Messages:    req.Messages,
+		MaxTokens:   req.MaxTokens,
+		Temperature: temperature,
+		Stream:      req.Stream,
+		Thinking:    req.Thinking,
+		Tools:       req.Tools,
+	}
+}
+
 // ZaiResponse represents a chat completion response from Z.ai.
 type ZaiResponse struct {
 	ID      string      `json:"id"`
@@ -207,12 +231,11 @@ func (c *ZaiClient) Chat(ctx context.Context, model string, messages []ChatMessa
 
 	// Build request with thinking control
 	req := ZaiRequest{
-		Model:       model,
-		Messages:    zaiMessages,
-		MaxTokens:   opts.MaxTokens,
-		Temperature: opts.Temperature,
-		Stream:      false,
-		Thinking:    c.buildThinking(model, opts.EnableThinking),
+		Model:     model,
+		Messages:  zaiMessages,
+		MaxTokens: opts.MaxTokens,
+		Stream:    false,
+		Thinking:  c.buildThinking(model, opts.EnableThinking),
 	}
 
 	// Set defaults
@@ -235,7 +258,7 @@ func (c *ZaiClient) Chat(ctx context.Context, model string, messages []ChatMessa
 		}
 	}
 
-	body, err := json.Marshal(req)
+	body, err := json.Marshal(newZaiWireRequest(req, opts.openAITemperatureValue()))
 	if err != nil {
 		return nil, fmt.Errorf("zai: failed to marshal request: %w", err)
 	}
@@ -284,12 +307,11 @@ func (c *ZaiClient) ChatStream(ctx context.Context, model string, messages []Cha
 
 	// Build request with thinking control
 	req := ZaiRequest{
-		Model:       model,
-		Messages:    zaiMessages,
-		MaxTokens:   opts.MaxTokens,
-		Temperature: opts.Temperature,
-		Stream:      true,
-		Thinking:    c.buildThinking(model, opts.EnableThinking),
+		Model:     model,
+		Messages:  zaiMessages,
+		MaxTokens: opts.MaxTokens,
+		Stream:    true,
+		Thinking:  c.buildThinking(model, opts.EnableThinking),
 	}
 
 	// Set defaults
@@ -312,7 +334,7 @@ func (c *ZaiClient) ChatStream(ctx context.Context, model string, messages []Cha
 		}
 	}
 
-	body, err := json.Marshal(req)
+	body, err := json.Marshal(newZaiWireRequest(req, opts.openAITemperatureValue()))
 	if err != nil {
 		return nil, fmt.Errorf("zai: failed to marshal request: %w", err)
 	}
